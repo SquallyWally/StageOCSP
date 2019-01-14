@@ -1,10 +1,14 @@
 package com.thalesgroup.nl.trtdelft.ocsp;
 
+/**This is Also an OCSPResponder*/
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import com.thalesgroup.nl.trtdelft.RevocationStatus;
+import com.thalesgroup.nl.trtdelft.RevocationVerifier;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.x509.Certificate;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
 import org.bouncycastle.cert.X509CertificateHolder;
@@ -28,7 +32,9 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+
 import java.util.Calendar;
+import java.util.Date;
 import java.util.GregorianCalendar;
 
 public class OCSPServerTest implements HttpHandler {
@@ -36,13 +42,39 @@ public class OCSPServerTest implements HttpHandler {
     public static void main(String[] args) {
 
 
-        //RevocationVerificationManager manager;
+        /**
+         * TO DO LIST
+         *
+         *
+         -Client(PC) wants to use the Server(my Program)
+         -Client gives CA( OpenSSL) his certificate
+         -CA checks if the certificate is Revoked or not
+         -if Revoked
+         -then the Server makes that Revoked Certificate Invalid(like via a System Print)\\\
+
+
+
+         DUS
+
+
+
+         CA FIXEN
+         CERTICAAT REVOKEN
+
+         MAAK EEN METHODE WAAAR DEZE KUT PROGRAMMA KAN CHECKEN OF DE CERTIFICAAT ONGELDSIG IS OF NIET
+
+         RAAAAAAA
+
+         * */
+
+
 
 
         try {
             OCSPServerTest ocspServerTest = new OCSPServerTest();
             ocspServerTest.setupCA();
-            // ocspServerTest.processOCSPRequest(10000);
+          //ocspServerTest.certIsValid();
+
 
             /**run HTTP server on port 16000
              Listen on OCSP request on port 16000**/
@@ -51,6 +83,7 @@ public class OCSPServerTest implements HttpHandler {
             server.createContext("/", ocspServerTest);
             server.setExecutor(null); /** createsa default executor*/
             server.start();
+            System.out.println("SERVER STAAT AAN");
         } catch (IOException e) {
             System.out.println("Http exception: " + e.getMessage());
 
@@ -101,8 +134,11 @@ public class OCSPServerTest implements HttpHandler {
 
     private PublicKey internalCAPublicKey = null;
 
-
+    private RevocationVerifier revocationVerifier ;
     private void setupCA() {
+
+
+        Date d = new Date();
 
 
         /**Initialize BouncyCastle OCSP WOOHOOOO!!!!!*/
@@ -111,28 +147,64 @@ public class OCSPServerTest implements HttpHandler {
 
         byte[] b = null;
 
-        //OCSPVerifier verifier = new OCSPVerifier();
+
         /**Use CA.crt Mr Thales as example*/
-        try (RandomAccessFile raf = new RandomAccessFile("bmth.crt", "r")) {
+        try (RandomAccessFile raf = new RandomAccessFile("thales.der", "r")) {
 
             b = new byte[(int) raf.length()];
             raf.read(b);
 
 
             /**Prints out the content within the Certificate*/
-            try (InputStream inp = new FileInputStream("bmth.crt")) {
+            try (InputStream inp = new FileInputStream("bmth.der")) {
                 CertificateFactory factory = CertificateFactory.getInstance("X.509");
                 X509Certificate cert = (X509Certificate) factory.generateCertificate(inp);
                System.out.println("De certificaat bestaat!");
+
+
+
+
+               /**aangepast */
+                System.out.println("Certificate version: " + cert.getVersion() +
+                        ", Serialnumber: " + cert.getSerialNumber()
+                        + ", is signed as: " +cert.getSigAlgName()
+                        +"  the issuer ID is: " + cert.getIssuerUniqueID());
+
+               cert.checkValidity(d);
+
+
+               RevocationStatus revocationStatus
+                       ;
+
+                //System.out.println(cert);
             }
+
+
+
 
 
         } catch (Exception e) {
             System.out.println("Can't load the ICA certificate file: " + e.getMessage());
             return;
         }
+
+        /**This method shows if an Certificate is expired or not*/
         try {
             internalCACertificate = new X509CertificateHolder(b);
+
+            /**The Date of when the Certificate is expired*/
+            Date certDatum = internalCACertificate.getNotAfter();
+
+            /**Shows the expiration date of the Certificate */
+           System.out.println("Is it Valid by date: " + internalCACertificate.isValidOn(d) +" " + internalCACertificate.getNotAfter());
+
+           if(certDatum.before(d)){
+               System.out.println("The certificate is outdated and hereby invalid");
+
+           }else{
+               System.out.println("Cert is guud");
+           }
+
         } catch (Exception e) {
             System.out.println("Can't parse the ICA certificate: " + e.getMessage());
         }
@@ -142,6 +214,9 @@ public class OCSPServerTest implements HttpHandler {
 
     }
 
+    public void setRevocationVerifier(final RevocationVerifier verifier){
+        this.revocationVerifier =verifier;
+    }
     private PublicKey
     readPublicKey(String fileName) {
 
@@ -168,6 +243,7 @@ public class OCSPServerTest implements HttpHandler {
     }
 
 
+
     private PrivateKey readPrivateKey(String fileName) {
         try {
             byte[] buf;
@@ -191,6 +267,20 @@ public class OCSPServerTest implements HttpHandler {
             System.out.println("Cannot load private key: " + e.getMessage());
             return null;
         }
+    }
+
+
+
+    /**This Method would decide if a certificate is valid or not( so revoked or not)*/
+    private void certIsValid(X509CertificateHolder cert){
+
+        String certificatePath = "C:\\Users\\milangelok\\IdeaProjects\\ocsp-test\\bmth.crt";
+
+
+
+        //X509CRL
+        RevokedStatus status ;
+
     }
 
     public byte[] processOCSPRequest(byte[] requestBytes) {
